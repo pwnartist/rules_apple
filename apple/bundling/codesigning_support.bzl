@@ -64,28 +64,28 @@ def _extract_provisioning_plist_command(ctx, provisioning_profile):
 
 
 def _extracted_provisioning_profile_identity(ctx, provisioning_profile):
-  """Extracts the first signing certificate hex ID from a provisioning profile.
+    """Extracts the first signing certificate hex ID from a provisioning profile.
 
-  Args:
-    ctx: The Skylark context.
-    provisioning_profile: The provisioning profile from which to extract the
-        signing identity.
-  Returns:
-    A Bash output-capturing subshell expression (`$( ... )`) that executes
-    commands needed to extract the hex ID of a signing certificate from a
-    provisioning profile. This expression can then be used in later commands
-    to include the ID in code-signing commands.
-  """
-  extract_plist_cmd = _extract_provisioning_plist_command(
-      ctx, provisioning_profile)
-  return ("$( " +
-          "PLIST=$(mktemp -t cert.plist) && trap \"rm ${PLIST}\" EXIT && " +
-          extract_plist_cmd + " > ${PLIST} && " +
-          "/usr/libexec/PlistBuddy -c " +
-          "'Print DeveloperCertificates:0' " +
-          "${PLIST} | openssl x509 -inform DER -noout -fingerprint | " +
-          "cut -d= -f2 | sed -e s#:##g " +
-          ")")
+    Args:
+      ctx: The Skylark context.
+      provisioning_profile: The provisioning profile from which to extract the
+          signing identity.
+    Returns:
+      A Bash output-capturing subshell expression (`$( ... )`) that executes
+      commands needed to extract the hex ID of a signing certificate from a
+      provisioning profile. This expression can then be used in later commands
+      to include the ID in code-signing commands.
+    """
+    extract_plist_cmd = _extract_provisioning_plist_command(
+        ctx, provisioning_profile)
+    return ("$( " +
+            "PLIST=$(mktemp -t cert.plist) && trap \"rm ${PLIST}\" EXIT && " +
+            extract_plist_cmd + " > ${PLIST} && " +
+            "/usr/libexec/PlistBuddy -c " +
+            "'Print DeveloperCertificates:0' " +
+            "${PLIST} | openssl x509 -inform DER -noout -fingerprint | " +
+            "cut -d= -f2 | sed -e s#:##g " +
+            ")")
 
 
 def _verify_signing_id_commands(ctx, identity, provisioning_profile):
@@ -133,72 +133,72 @@ def _verify_signing_id_commands(ctx, identity, provisioning_profile):
 
 
 def _embedded_provisioning_profile_name(ctx):
-  """Returns the name of the embedded provisioning profile for the target.
+    """Returns the name of the embedded provisioning profile for the target.
 
-  On macOS, the name of the provisioning profile that is placed in the bundle is
-  named `embedded.provisionprofile`. On all other Apple platforms, it is named
-  `embedded.mobileprovision`.
+    On macOS, the name of the provisioning profile that is placed in the bundle is
+    named `embedded.provisionprofile`. On all other Apple platforms, it is named
+    `embedded.mobileprovision`.
 
-  Args:
-    ctx: The Skylark context.
-  Returns:
-    The name of the embedded provisioning profile in the bundle.
-  """
-  if platform_support.platform_type(ctx) == apple_common.platform_type.macos:
-    return "embedded.provisionprofile"
-  return "embedded.mobileprovision"
+    Args:
+      ctx: The Skylark context.
+    Returns:
+      The name of the embedded provisioning profile in the bundle.
+    """
+    if platform_support.platform_type(ctx) == apple_common.platform_type.macos:
+        return "embedded.provisionprofile"
+    return "embedded.mobileprovision"
 
 
 def _codesign_command(ctx, path_to_sign, entitlements_file):
-  """Returns a single `codesign` command invocation.
+    """Returns a single `codesign` command invocation.
 
-  Args:
-    ctx: The Skylark context.
-    path_to_sign: A struct indicating the path that should be signed and its
-        optionality (see `_path_to_sign`).
-    entitlements_file: The entitlements file to pass to codesign. May be `None`
-        for non-app binaries (e.g. test bundles).
-  Returns:
-    The codesign command invocation for the given directory.
-  """
-  path = path_to_sign.path
-  cmd_prefix = ""
-  if path_to_sign.optional:
-    cmd_prefix += "ls %s >& /dev/null && " % path
+    Args:
+      ctx: The Skylark context.
+      path_to_sign: A struct indicating the path that should be signed and its
+          optionality (see `_path_to_sign`).
+      entitlements_file: The entitlements file to pass to codesign. May be `None`
+          for non-app binaries (e.g. test bundles).
+    Returns:
+      The codesign command invocation for the given directory.
+    """
+    path = path_to_sign.path
+    cmd_prefix = ""
+    if path_to_sign.optional:
+        cmd_prefix += "ls %s >& /dev/null && " % path
 
-  # The command returned by this function is executed as part of the final
-  # bundling shell script. Each directory to be signed must be prefixed by
-  # $WORK_DIR, which is the variable in that script that contains the path
-  # to the directory where the bundle is being built.
-  if platform_support.is_device_build(ctx):
-    entitlements_flag = ""
-    if entitlements_file:
-      entitlements_flag = (
-          "--entitlements %s" % shell.quote(entitlements_file.path))
+    # The command returned by this function is executed as part of the final
+    # bundling shell script. Each directory to be signed must be prefixed by
+    # $WORK_DIR, which is the variable in that script that contains the path
+    # to the directory where the bundle is being built.
+    if platform_support.is_device_build(ctx):
+        entitlements_flag = ""
+        if entitlements_file:
+            entitlements_flag = (
+                "--entitlements %s" % shell.quote(entitlements_file.path))
 
-    return (cmd_prefix + "/usr/bin/codesign --force " +
-            "--sign $VERIFIED_ID %s %s" % (entitlements_flag, path))
-  else:
-    # Use ad hoc signing for simulator builds.
-    return cmd_prefix + '/usr/bin/codesign --force --sign "-" %s' % path
+        return (cmd_prefix + "/usr/bin/codesign --force " +
+                "--sign $VERIFIED_ID %s %s" % (entitlements_flag, path))
+    else:
+        # Use ad hoc signing for simulator builds.
+        return cmd_prefix + '/usr/bin/codesign --force --sign "-" %s' % path
 
 
 def _path_to_sign(path, optional=False):
-  """Returns a "path to sign" value to be passed to `signing_command_lines`.
+    """Returns a "path to sign" value to be passed to `signing_command_lines`.
 
-  Args:
-    path: The path to sign, relative to wherever the code signing command lines
-        are being executed. For example, with bundle signing these paths are
-        prefixed with a `$WORK_DIR` environment variable that points to the
-        location where the bundle is being constructed, but for simple binary
-        signing it is the path to the binary itself.
-    optional: If `True`, the path is an optional path that is ignored if it does
-        not exist. This is used to handle Frameworks directories cleanly since
-        they may or may not be present in the bundle.
-  Returns:
-    A `struct` that can be passed to `signing_command_lines`.
-  """
-  return struct(path=path, optional=optional)
+    Args:
+      path: The path to sign, relative to wherever the code signing command lines
+          are being executed. For example, with bundle signing these paths are
+          prefixed with a `$WORK_DIR` environment variable that points to the
+          location where the bundle is being constructed, but for simple binary
+          signing it is the path to the binary itself.
+      optional: If `True`, the path is an optional path that is ignored if it does
+          not exist. This is used to handle Frameworks directories cleanly since
+          they may or may not be present in the bundle.
+    Returns:
+      A `struct` that can be passed to `signing_command_lines`.
+    """
+    return struct(path=path, optional=optional)
 
 
 def _signing_command_lines(ctx,
